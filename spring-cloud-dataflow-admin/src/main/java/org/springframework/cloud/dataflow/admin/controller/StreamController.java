@@ -16,7 +16,6 @@
 
 package org.springframework.cloud.dataflow.admin.controller;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -28,6 +27,8 @@ import org.slf4j.LoggerFactory;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.cloud.dataflow.admin.AdminConfigurationProperties;
 import org.springframework.cloud.dataflow.admin.repository.StreamDefinitionRepository;
 import org.springframework.cloud.dataflow.core.ModuleCoordinates;
 import org.springframework.cloud.dataflow.core.ModuleDefinition;
@@ -67,6 +68,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/streams")
 @ExposesResourceFor(StreamDefinitionResource.class)
+@EnableConfigurationProperties(AdminConfigurationProperties.class)
 public class StreamController {
 
 	private static final Logger logger = LoggerFactory.getLogger(StreamController.class);
@@ -90,6 +92,12 @@ public class StreamController {
 	 * Assembler for {@link StreamDefinitionResource} objects.
 	 */
 	private final Assembler streamAssembler = new Assembler();
+
+	/**
+	 * General configuration properties.
+	 */
+	@Autowired
+	private AdminConfigurationProperties adminConfigurationProperties;
 
 	private static final String DEFAULT_PARTITION_KEY_EXPRESSION = "payload";
 
@@ -214,7 +222,11 @@ public class StreamController {
 
 	private void deployStream(StreamDefinition stream, Map<String, String> cumulatedDeploymentProperties) {
 		if (cumulatedDeploymentProperties == null) {
-			cumulatedDeploymentProperties = Collections.emptyMap();
+			cumulatedDeploymentProperties = new HashMap<>();
+		}
+		if (adminConfigurationProperties.getBinder() != null) {
+			cumulatedDeploymentProperties.put("module.*.excludes",":*-binder-redis,:*-binder-kafka,:*-binder-rabbit");
+			cumulatedDeploymentProperties.put("module.*.includes", adminConfigurationProperties.getBinder().getCoordinates());
 		}
 		Iterator<ModuleDefinition> iterator = stream.getDeploymentOrderIterator();
 		Iterator<ModuleDefinition> iteratorHolder = stream.getDeploymentOrderIterator();
